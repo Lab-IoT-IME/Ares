@@ -1,11 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { getStyle, hexToRgba } from '@coreui/coreui/dist/js/coreui-utilities';
 import { CustomTooltips } from '@coreui/coreui-plugin-chartjs-custom-tooltips';
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../shared/auth/auth.service';
+import { UserService } from '../../shared/user/user.service';
+import { environment } from '../../../environments/environment';
+
+const average = arr => arr.reduce( ( p, c ) => p + c, 0 ) / arr.length;
 
 @Component({
   templateUrl: 'dashboard.component.html'
 })
 export class DashboardComponent implements OnInit {
+  uId: number;
+  baseUrl = environment.apiBaseUrl;
+
+  constructor(
+    private http: HttpClient,
+    private userService: UserService) {
+      this.uId = this.userService.userInfo.id;
+    }
 
   radioModel: string = 'Month';
 
@@ -216,6 +230,36 @@ export class DashboardComponent implements OnInit {
   public mainChartData2: Array<number> = [];
   public mainChartData3: Array<number> = [];
 
+  public hrAvg: string;
+  public hrChart: Array<number> = [];
+  public hrChartAverage: Array<number> = [];
+  public hrChartLabels: Array<any> = [];
+  public hrChartData: Array<any> = [
+    {
+      data: this.hrChart,
+      label: 'HR'
+    },
+    {
+      data: this.hrChartAverage,
+      label: 'HR - Average'
+    }
+  ];
+
+  public spo2Avg: string;
+  public spo2Chart: Array<number> = [];
+  public spo2ChartAverage: Array<number> = [];
+  public spo2ChartLabels: Array<any> = [];
+  public spo2ChartData: Array<any> = [
+    {
+      data: this.spo2Chart,
+      label: 'SpO2'
+    },
+    {
+      data: this.spo2ChartAverage,
+      label: 'SpO2 - Average'
+    }
+  ];
+
   public mainChartData: Array<any> = [
     {
       data: this.mainChartData1,
@@ -261,10 +305,10 @@ export class DashboardComponent implements OnInit {
       }],
       yAxes: [{
         ticks: {
-          beginAtZero: true,
+          beginAtZero: false,
           maxTicksLimit: 5,
-          stepSize: Math.ceil(250 / 5),
-          max: 250
+          stepSize: 10,
+          min: 20
         }
       }]
     },
@@ -289,18 +333,18 @@ export class DashboardComponent implements OnInit {
       borderColor: getStyle('--info'),
       pointHoverBackgroundColor: '#fff'
     },
-    { // brandSuccess
-      backgroundColor: 'transparent',
-      borderColor: getStyle('--success'),
-      pointHoverBackgroundColor: '#fff'
-    },
     { // brandDanger
       backgroundColor: 'transparent',
       borderColor: getStyle('--danger'),
       pointHoverBackgroundColor: '#fff',
       borderWidth: 1,
       borderDash: [8, 5]
-    }
+    },
+    { // brandSuccess
+      backgroundColor: 'transparent',
+      borderColor: getStyle('--success'),
+      pointHoverBackgroundColor: '#fff'
+    },
   ];
   public mainChartLegend = false;
   public mainChartType = 'line';
@@ -381,8 +425,65 @@ export class DashboardComponent implements OnInit {
     // generate random values for mainChart
     for (let i = 0; i <= this.mainChartElements; i++) {
       this.mainChartData1.push(this.random(50, 200));
-      this.mainChartData2.push(this.random(80, 100));
-      this.mainChartData3.push(65);
+      //this.mainChartData2.push(this.random(80, 100));
+      //this.mainChartData3.push(65);
     }
+    
+    this.updateChartData(null);
+  }
+
+  
+
+  public updateChartData(chart) {
+    console.log('Updating Chart Data');
+
+    this.http.get(`${this.baseUrl}/sensors/${this.uId}/data?lastSet=true&usersIds=${this.uId}`).toPromise().then(res => {
+      let hrSet = res['HR'][0];
+      let spo2Set = res['SpO2'][0];
+
+      if(chart == null || chart == 'HR') {
+        this.hrChart = [];
+        this.hrChartAverage = [];
+        this.hrChartLabels = [];
+        
+        // Filling data
+        hrSet.sort((a, b) => (a['setSeq'] > b['setSeq']) ? 1 : -1);
+        hrSet.forEach(element => {
+          this.hrChart.push(element['value']);
+          this.hrChartLabels.push(element['setSeq'].toString());
+        });
+
+        // Calculate and fill average value
+        this.hrAvg = average(this.hrChart).toFixed(2);
+        this.hrChart.forEach(_ => {
+          this.hrChartAverage.push(Number(this.hrAvg));
+        });
+
+        this.hrChartData[0]['data'] = this.hrChart;
+        this.hrChartData[1]['data'] = this.hrChartAverage;
+      }
+
+      if(chart == null || chart == 'SpO2') {
+        this.spo2Chart = [];
+        this.spo2ChartAverage = [];
+        this.spo2ChartLabels = [];
+
+        // Filling data
+        spo2Set.sort((a, b) => (a['setSeq'] > b['setSeq']) ? 1 : -1);
+        spo2Set.forEach(element => {
+          this.spo2Chart.push(element['value']);
+          this.spo2ChartLabels.push(element['setSeq'].toString());
+        });
+
+        // Calculate and fill average value
+        this.spo2Avg = average(this.spo2Chart).toFixed(2);
+        this.spo2Chart.forEach(_ => {
+          this.spo2ChartAverage.push(Number(this.spo2Avg));
+        });
+
+        this.spo2ChartData[0]['data'] = this.spo2Chart;
+        this.spo2ChartData[1]['data'] = this.spo2ChartAverage;
+      }
+    }).catch(e => console.log(e));
   }
 }

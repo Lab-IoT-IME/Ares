@@ -43,6 +43,15 @@ import { BsDropdownModule } from 'ngx-bootstrap/dropdown';
 import { TabsModule } from 'ngx-bootstrap/tabs';
 import { ChartsModule } from 'ng2-charts';
 
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { AuthService } from './shared/auth/auth.service';
+import { CookieService } from 'ngx-cookie-service';
+import { TokenInterceptor } from './shared/auth/token.interceptor';
+import { UserService } from './shared/user/user.service';
+import { AuthGuard } from './shared/guard/auth.guard';
+import { InnerGuard } from './shared/guard/inner.guard';
+import { FormsModule } from '@angular/forms';
+
 @NgModule({
   imports: [
     BrowserModule,
@@ -59,6 +68,8 @@ import { ChartsModule } from 'ng2-charts';
     ChartsModule,
     IconModule,
     IconSetModule.forRoot(),
+    HttpClientModule,
+    FormsModule
   ],
   declarations: [
     AppComponent,
@@ -73,7 +84,17 @@ import { ChartsModule } from 'ng2-charts';
       provide: LocationStrategy,
       useClass: HashLocationStrategy
     },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: TokenInterceptor,
+      multi: true
+    },
     IconSetService,
+    AuthService,
+    CookieService,
+    UserService,
+    AuthGuard,
+    InnerGuard
   ],
   bootstrap: [ AppComponent ]
 })
